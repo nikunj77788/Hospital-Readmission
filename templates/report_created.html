@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5 text-center">
+  <h2 class="mb-4 text-success">✅ Monthly Report Generated Successfully!</h2>
+  <p>You can download the report files below:</p>
+
+  <div class="mt-4">
+<a href="{{ url_for('download_report_file', filename=downloads['pdf'].split('/')[-1]) }}" class="btn btn-danger me-3">
+      📄 Download PDF Report
+    </a>
+<a href="{{ url_for('download_report_file', filename=downloads['excel'].split('/')[-1]) }}" class="btn btn-danger me-3">
+      📊 Download Excel Report
+    </a>
+  </div>
+
+  <div class="mt-5">
+    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">
+      🔙 Back to Admin Dashboard
+    </a>
+  </div>
+</div>
+{% endblock %}

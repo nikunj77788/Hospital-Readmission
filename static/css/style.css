@@ -1,0 +1,299 @@
+/* ===========================
+   Global Styles
+=========================== */
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: #f5f7fa;
+  color: #2c3e50;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ===========================
+   Header
+=========================== */
+header {
+  background-color: white;
+  color: #2c3e50;
+  padding: 50px 40px;
+  text-align: center;
+  box-shadow: 0 9px 40px rgba(0,0,0,0.1);
+  border-bottom-left-radius: 25px;
+  border-bottom-right-radius: 25px;
+  position: relative;
+}
+
+header img {
+  height: 220px;
+  width: auto;
+  margin-bottom: 20px;
+  border-radius: 25px;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.15);
+  transition: transform 0.3s;
+}
+
+header img:hover {
+  transform: scale(1.05);
+}
+
+header h1 {
+  margin-top: 10px;
+  font-size: 2.8em;
+  font-weight: 700;
+}
+
+header p {
+  font-size: 1.3em;
+  opacity: 0.85;
+  margin-top: 8px;
+}
+
+/* ===========================
+   Navigation Bar
+=========================== */
+nav {
+  background-color: white;
+  display: flex;
+  justify-content: center;
+  gap: 25px;
+  padding: 12px 0;
+  flex-wrap: wrap;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+  border-radius: 15px;
+  margin: -20px auto 30px;
+  max-width: 90%;
+}
+
+nav a {
+  color: #2980b9;
+  text-decoration: none;
+  font-weight: 600;
+  transition: 0.3s;
+  font-size: 1.1em;
+  padding: 10px 18px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+nav a i {
+  font-size: 1.2em;
+}
+
+nav a:hover {
+  background: #2980b9;
+  color: white;
+  transform: translateY(-2px);
+}
+
+/* ===========================
+   Form Container (Login / Signup)
+=========================== */
+.form-container {
+  background: linear-gradient(145deg, #ffffff, #f0f4f8);
+  padding: 45px 35px;
+  margin: 30px auto;
+  width: 85%;
+  max-width: 450px;
+  border-radius: 25px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.12);
+  transition: 0.3s;
+}
+
+.form-container:hover {
+  box-shadow: 0 25px 50px rgba(0,0,0,0.18);
+}
+
+input, select {
+  width: 100%;
+  padding: 16px;
+  margin-bottom: 20px;
+  border-radius: 12px;
+  border: 1px solid #d1d9e6;
+  font-size: 1em;
+  transition: all 0.3s;
+}
+
+input:focus, select:focus {
+  border-color: #3498db;
+  box-shadow: 0 0 12px rgba(52,152,219,0.25);
+  outline: none;
+}
+
+button {
+  background: linear-gradient(45deg, #3498db, #2980b9);
+  color: white;
+  padding: 16px 30px;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 1.1em;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+  transition: all 0.3s;
+}
+
+button:hover {
+  background: linear-gradient(45deg, #2980b9, #1c5980);
+  transform: translateY(-3px);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+}
+
+button i {
+  font-size: 1.2em;
+}
+
+/* ===========================
+   Boxes: Result, Alert, Chart
+=========================== */
+.result-box, .alert-box, .chart-box {
+  background: white;
+  padding: 30px;
+  margin: 25px auto;
+  width: 85%;
+  max-width: 950px;
+  border-radius: 25px;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.08);
+  transition: all 0.3s;
+}
+
+.result-box:hover, .chart-box:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 15px 40px rgba(0,0,0,0.12);
+}
+
+.result-box h2, .chart-box h2 {
+  font-size: 2em;
+  font-weight: 700;
+  color: #34495e;
+}
+
+.result-box p, .chart-box p {
+  font-size: 1.15em;
+  color: #34495e;
+}
+
+.alert-box {
+  background-color: #fce4e4;
+  color: #c0392b;
+  font-weight: 600;
+  text-align: center;
+  border-left: 6px solid #e74c3c;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.05);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+  font-size: 1.1em;
+}
+
+.alert-box.success {
+  background-color: #e4f7e4;
+  color: #27ae60;
+  border-left: 6px solid #2ecc71;
+}
+
+.alert-box.info {
+  background-color: #e4f0f7;
+  color: #2980b9;
+  border-left: 6px solid #3498db;
+}
+
+.alert-box.warning {
+  background-color: #fff4e5;
+  color: #e67e22;
+  border-left: 6px solid #d35400;
+}
+
+/* ===========================
+   Badges for Risk Levels
+=========================== */
+.badge-high {
+  background-color: #dc3545;
+  color: white;
+  font-weight: 600;
+}
+
+.badge-medium {
+  background-color: #ffc107;
+  color: #2c3e50;
+  font-weight: 600;
+}
+
+.badge-low {
+  background-color: #28a745;
+  color: white;
+  font-weight: 600;
+}
+
+/* ===========================
+   Dashboard Cards / Charts
+=========================== */
+.chart-box {
+  background: linear-gradient(145deg, #ffffff, #f0f4f8);
+  border-radius: 25px;
+  box-shadow: 0 15px 40px rgba(0,0,0,0.1);
+  padding: 35px;
+  text-align: center;
+  transition: all 0.3s;
+}
+
+.chart-box:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.15);
+}
+
+/* ===========================
+   Tables Styling
+=========================== */
+table.dataTable tbody tr:hover {
+  background-color: #f1f4f9 !important;
+}
+
+table.dataTable thead th {
+  background-color: #2980b9;
+  color: white;
+  text-align: center;
+}
+
+table.dataTable tbody td {
+  text-align: center;
+  vertical-align: middle;
+}
+
+/* ===========================
+   Footer
+=========================== */
+footer {
+  text-align: center;
+  background: #2980b9;
+  color: white;
+  padding: 20px;
+  font-size: 14px;
+  margin-top: auto;
+  border-top-left-radius: 25px;
+  border-top-right-radius: 25px;
+  box-shadow: 0 -4px 15px rgba(0,0,0,0.1);
+}
+
+/* ===========================
+   Responsive Design
+=========================== */
+@media (max-width: 768px) {
+  header h1 { font-size: 2.2em; }
+  nav { gap: 15px; }
+  .form-container, .result-box, .alert-box, .chart-box { width: 95%; }
+}
+
+@media (max-width: 480px) {
+  header h1 { font-size: 1.8em; }
+  header p { font-size: 1em; }
+  button { width: 100%; padding: 14px; }
+}

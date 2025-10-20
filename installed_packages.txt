@@ -1,0 +1,44 @@
+aiohappyeyeballs==2.6.1
+aiohttp==3.13.1
+aiohttp-retry==2.9.1
+aiosignal==1.4.0
+attrs==25.4.0
+blinker @ file:///private/var/folders/k1/30mswbxs7r1g6zwn8y4fyt500000gp/T/abs_11lor_igbs/croot/blinker_1737449046432/work
+Bottleneck @ file:///private/var/folders/nz/j6p8yfhx1mv_0grj5xl4650h0000gp/T/abs_55txi4fy1u/croot/bottleneck_1731058642212/work
+certifi==2025.10.5
+charset-normalizer==3.4.4
+click @ file:///private/var/folders/nz/j6p8yfhx1mv_0grj5xl4650h0000gp/T/abs_2bwamfk1ra/croot/click_1754477943404/work
+Flask @ file:///private/var/folders/k1/30mswbxs7r1g6zwn8y4fyt500000gp/T/abs_c5fr3f66m2/croot/flask_1756453130186/work
+Flask-Mail==0.10.0
+frozenlist==1.8.0
+idna==3.11
+itsdangerous @ file:///private/var/folders/nz/j6p8yfhx1mv_0grj5xl4650h0000gp/T/abs_00jdi1gu23/croot/itsdangerous_1716533346702/work
+Jinja2 @ file:///private/var/folders/k1/30mswbxs7r1g6zwn8y4fyt500000gp/T/abs_2cnn4kenrm/croot/jinja2_1741710859444/work
+joblib==1.5.2
+MarkupSafe @ file:///private/var/folders/nz/j6p8yfhx1mv_0grj5xl4650h0000gp/T/abs_1f_uj4vxik/croot/markupsafe_1738584045311/work
+multidict==6.7.0
+narwhals @ file:///opt/miniconda3/conda-bld/narwhals_1760003495182/work
+numexpr @ file:///private/var/folders/k1/30mswbxs7r1g6zwn8y4fyt500000gp/T/abs_766kpwgy17/croot/numexpr_1755766476118/work
+numpy @ file:///opt/miniconda3/conda-bld/numpy_and_numpy_base_1760547731981/work/dist/numpy-2.3.3-cp312-cp312-macosx_12_0_arm64.whl#sha256=d8800e4f8209b3ffcc6e2b8a233f4ac2dd77374bc6a691cc613604c085153fde
+packaging @ file:///private/var/folders/k1/30mswbxs7r1g6zwn8y4fyt500000gp/T/abs_b31rpdx1of/croot/packaging_1753775365574/work
+pandas @ file:///opt/miniconda3/conda-bld/pandas_1759822251462/work/dist/pandas-2.3.3-cp312-cp312-macosx_12_0_arm64.whl#sha256=b995ece799637bd94081d00e80a6c768a3b460e1b1db60f430f271f4d5d1ca9d
+pillow==12.0.0
+plotly @ file:///private/var/folders/k1/30mswbxs7r1g6zwn8y4fyt500000gp/T/abs_1e1bdkjh6p/croot/plotly_1756454817361/work
+propcache==0.4.1
+PyJWT==2.10.1
+python-dateutil @ file:///private/var/folders/k1/30mswbxs7r1g6zwn8y4fyt500000gp/T/abs_66ud1l42_h/croot/python-dateutil_1716495741162/work
+pytz @ file:///private/var/folders/k1/30mswbxs7r1g6zwn8y4fyt500000gp/T/abs_3bjczh6it0/croot/pytz_1752135865541/work
+reportlab==4.4.4
+requests==2.32.5
+scikit-learn==1.5.1
+scipy==1.16.2
+setuptools==80.9.0
+six @ file:///private/var/folders/k1/30mswbxs7r1g6zwn8y4fyt500000gp/T/abs_03myqm7p6o/croot/six_1744271511946/work
+threadpoolctl==3.6.0
+twilio==9.8.4
+typing_extensions==4.15.0
+tzdata @ file:///croot/python-tzdata_1746123641790/work
+urllib3==2.5.0
+Werkzeug @ file:///private/var/folders/k1/30mswbxs7r1g6zwn8y4fyt500000gp/T/abs_87am5fxnsf/croot/werkzeug_1737448721856/work
+wheel==0.45.1
+yarl==1.22.0

@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container my-5">
+  <h2 class="text-center text-primary mb-2">
+    🩺 Doctor Dashboard - {{ session.get('name', 'Doctor') }}
+  </h2>
+  <p class="text-center text-muted mb-4">
+    Track your patients' readmission risk and download personalized care plans
+  </p>
+
+  <div class="row justify-content-center">
+    <div class="col-md-6">
+      <div class="card shadow p-4 rounded">
+        <h4 class="text-center mb-3">Patient Details</h4>
+
+        {% set pd = patient_data if patient_data is defined else {} %}
+
+        <form id="patientForm">
+          <div id="spinner" class="d-none text-center mb-2">⏳ Calculating risk...</div>
+
+          <!-- Basic Info -->
+          <div class="mb-3">
+            <label class="form-label" for="name">Patient Name:</label>
+            <input type="text" id="name" name="name" class="form-control" required placeholder="Enter patient name" aria-label="Patient Name">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label" for="age">Age:</label>
+            <input type="number" id="age" class="form-control" name="age" min="0" max="120"
+                   value="{{ pd.get('age','') }}" required aria-label="Age of patient">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label" for="time_in_hospital">Time in Hospital (days):</label>
+            <input type="number" id="time_in_hospital" class="form-control" name="time_in_hospital"
+                   min="0" value="{{ pd.get('time_in_hospital','') }}" aria-label="Time in hospital">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label" for="num_lab_procedures">Number of Lab Procedures:</label>
+            <input type="number" id="num_lab_procedures" class="form-control" name="num_lab_procedures"
+                   min="0" value="{{ pd.get('num_lab_procedures','') }}" aria-label="Number of lab procedures">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label" for="num_medications">Number of Medications:</label>
+            <input type="number" id="num_medications" class="form-control" name="num_medications"
+                   min="0" value="{{ pd.get('num_medications','') }}" aria-label="Number of medications">
+          </div>
+
+          <!-- Categorical Fields -->
+          <div class="mb-3">
+            <label class="form-label" for="change">Change in Medication?</label>
+            <select class="form-select" id="change" name="change" aria-label="Change in medication">
+              <option value="No" {% if pd.get('change','No') == 'No' %}selected{% endif %}>No</option>
+              <option value="Yes" {% if pd.get('change','No') == 'Yes' %}selected{% endif %}>Yes</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label" for="diabetesMed">Diabetes Medication?</label>
+            <select class="form-select" id="diabetesMed" name="diabetesMed" aria-label="Diabetes medication">
+              <option value="Yes" {% if pd.get('diabetesMed','No') == 'Yes' %}selected{% endif %}>Yes</option>
+              <option value="No" {% if pd.get('diabetesMed','No') == 'No' %}selected{% endif %}>No</option>
+            </select>
+          </div>
+
+          <!-- Medications -->
+          {% for med in ['acarbose','acetohexamide','metformin','glipizide','insulin'] %}
+          <div class="mb-3">
+            <label class="form-label" for="{{ med }}">{{ med|capitalize }}:</label>
+            <select class="form-select" id="{{ med }}" name="{{ med }}" aria-label="{{ med|capitalize }} medication">
+              <option value="No" {% if pd.get(med,'No')=='No' %}selected{% endif %}>No</option>
+              <option value="Steady" {% if pd.get(med,'No')=='Steady' %}selected{% endif %}>Steady</option>
+              <option value="Up" {% if pd.get(med,'No')=='Up' %}selected{% endif %}>Increasing</option>
+            </select>
+          </div>
+          {% endfor %}
+
+          <button type="button" class="btn btn-primary w-100 mt-3" onclick="predictRisk()">🔍 Check Risk</button>
+          <button type="button" class="btn btn-success w-100 mt-2" onclick="downloadPDF()">📄 Download Care Plan</button>
+        </form>
+
+        <!-- Risk Result -->
+        <div id="riskResult" class="mt-4 p-3 rounded d-none text-center"></div>
+
+        <!-- High-risk toast -->
+        <div id="highRiskToast" class="toast align-items-center text-white bg-danger border-0 position-fixed top-0 end-0 m-3"
+             role="alert" aria-live="assertive" aria-atomic="true">
+          <div class="d-flex">
+            <div class="toast-body" id="toastBody"></div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
+                    aria-label="Close"></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- History Table -->
+  {% if patient_history %}
+  <div class="mt-5">
+    <h4>📋 Patient History</h4>
+    <div class="table-responsive">
+      <table class="table table-striped table-bordered align-middle text-center">
+        <thead class="table-dark">
+          <tr>
+            <th>Timestamp</th>
+            <th>AI Risk</th>
+            <th>Risk Score</th>
+            <th>Time in Hospital</th>
+            <th>Medications</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in patient_history %}
+          <tr class="{% if row.ai_risk=='High' %}high-risk{% elif row.ai_risk=='Medium' %}medium-risk{% else %}low-risk{% endif %}">
+            <td>{{ row.timestamp }}</td>
+            <td>{{ row.ai_risk }}</td>
+            <td>{{ row.ai_risk_score|round(1) }}%</td>
+            <td>{{ row.time_in_hospital }}</td>
+            <td>{{ row.num_medications }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function predictRisk() {
+  const spinner = document.getElementById('spinner');
+  spinner.classList.remove('d-none');
+
+  const data = Object.fromEntries(new FormData(document.getElementById("patientForm")));
+
+  fetch("/predict", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(data)
+  })
+  .then(resp => resp.json())
+  .then(res => {
+    const box = document.getElementById('riskResult');
+    box.className = 'mt-4 p-3 rounded text-center d-block';
+
+    if (res.error) {
+      box.innerHTML = `<p class="text-danger">${res.error}</p>`;
+      return;
+    }
+
+    const risk = res.risk_level || "Unknown";
+    const score = parseFloat(res.risk_score); // already in %
+    const scoreDisplay = isNaN(score) ? "" : score.toFixed(1) + "%";
+
+    // Apply color class
+    box.classList.remove("low-risk", "medium-risk", "high-risk");
+    let riskClass = risk === "High" ? "high-risk" :
+                    (risk === "Medium" ? "medium-risk" : "low-risk");
+    box.classList.add(riskClass);
+
+    // Recommendation text
+    let rec = risk === "High" ? "⚠️ High risk! Immediate follow-up required."
+            : risk === "Medium" ? "Monitor closely and review medications."
+            : "Low risk. Routine care.";
+
+    // Update box content
+    box.innerHTML = `
+      <h4>Predicted Risk: <span class="${riskClass}">${risk}</span> ${risk === "High" ? "⚠️" : ""}</h4>
+      <p><strong>Score:</strong> ${scoreDisplay}</p>
+      <p>${rec}</p>
+    `;
+
+    // Show high-risk toast + notify
+    if (risk === "High") {
+      const toastEl = document.getElementById('highRiskToast');
+      document.getElementById('toastBody').innerText =
+        `🚨 Patient ${data.name || 'Unknown'} is HIGH RISK! Score: ${scoreDisplay}. Immediate follow-up required.`;
+      const toast = new bootstrap.Toast(toastEl);
+      toast.show();
+
+      fetch("/notify_high_risk", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          patient_id: data.patient_id || "N/A",
+          patient_name: data.name || "Unknown",
+          risk_score: score,
+          recommendation: rec
+        })
+      }).catch(err => console.error("❌ Notification failed:", err));
+    }
+  })
+  .catch(err => console.error(err))
+  .finally(() => spinner.classList.add('d-none'));
+}
+
+function downloadPDF() {
+  const data = Object.fromEntries(new FormData(document.getElementById("patientForm")));
+  fetch("/patient_pdf", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(data)
+  })
+  .then(resp => resp.blob())
+  .then(blob => {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${data.name || 'patient'}_care_plan.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  })
+  .catch(err => console.error("❌ Error generating PDF:", err));
+}
+</script>
+
+<style>
+.low-risk { background-color: #d4edda; color: #155724; font-weight: bold; }
+.medium-risk { background-color: #fff3cd; color: #856404; font-weight: bold; }
+.high-risk { background-color: #f8d7da; color: #721c24; font-weight: bold; }
+.card { transition: transform 0.2s; }
+.card:hover { transform: scale(1.02); }
+#spinner { font-weight: bold; color: #0d6efd; }
+.toast { z-index: 1055; }
+</style>
+{% endblock %}

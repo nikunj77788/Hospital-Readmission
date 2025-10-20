@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Hospital Dashboard Login</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<header>
+  <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Hospital Logo" style="height:60px; margin-bottom:10px;">
+  <h1>🏥 Hospital Readmission Dashboard</h1>
+  <p>Login to access your portal</p>
+</header>
+
+<main>
+  <div class="form-container">
+    {% if error %}
+      <div class="alert-box">{{ error }}</div>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('login') }}">
+      <label>Username:</label>
+      <input type="text" name="username" placeholder="Enter username" required>
+
+      <label>Password:</label>
+      <input type="password" name="password" placeholder="Enter password" required>
+
+      <label>Select Role:</label>
+      <select name="role" required>
+        <option value="">-- Select Role --</option>
+        <option value="doctor">Doctor</option>
+        <option value="patient">Patient</option>
+        <option value="admin">Admin</option>
+      </select>
+
+      <button type="submit">Login</button>
+    </form>
+
+    <p style="text-align:center; margin-top:15px;">
+      Don't have an account? <a href="{{ url_for('signup') }}">Sign Up</a>
+    </p>
+  </div>
+</main>
+</body>
+</html>

@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container my-5">
+
+    <!-- Dashboard Header -->
+    <div class="text-center mb-5">
+        <h1 class="text-primary fw-bold">🏥 Hospital Admin Dashboard</h1>
+        <p class="text-muted">Welcome, {{ session['name'] }}! Monitor readmission statistics and system alerts.</p>
+    </div>
+
+    <!-- Navigation Buttons -->
+    <div class="d-flex justify-content-center gap-3 flex-wrap mb-5">
+        <a href="/doctor" class="btn btn-outline-primary fw-bold">Doctor Portal</a>
+        <a href="/patient" class="btn btn-outline-secondary fw-bold">Patient Portal</a>
+        <a href="/admin" class="btn btn-outline-success fw-bold">Admin Dashboard</a>
+        <a href="/logout" class="btn btn-outline-danger fw-bold">Logout</a>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="row g-4 mb-5">
+        <!-- Department Readmission Rates -->
+        {% if graph_html %}
+        <div class="col-12 col-lg-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h4 class="card-title text-center text-primary mb-3">📊 Department Readmission Rates</h4>
+                    <div class="chart-container overflow-auto">{{ graph_html|safe }}</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Monthly Average Risk Trend -->
+        {% if trend_html %}
+        <div class="col-12 col-lg-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h4 class="card-title text-center text-primary mb-3">📈 Monthly Average Risk Trend</h4>
+                    <div class="chart-container overflow-auto">{{ trend_html|safe }}</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Department Alerts -->
+    <div class="card mb-5 shadow-sm">
+        <div class="card-body">
+            <h3 class="card-title text-primary mb-3">📢 Department Alerts</h3>
+            {% if alerts_list and alerts_list|length > 0 %}
+            <div class="table-responsive">
+                <table class="table table-hover table-bordered align-middle text-center">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Department</th>
+                            <th>Status</th>
+                            <th>Rate (%)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for a in alerts_list %}
+                        <tr>
+                            <td>{{ a.department }}</td>
+                            <td>
+                                {% if a.status == "High" %}
+                                <span class="badge bg-danger fw-bold">{{ a.status }}</span>
+                                {% elif a.status == "Medium" %}
+                                <span class="badge bg-warning text-dark fw-bold">{{ a.status }}</span>
+                                {% else %}
+                                <span class="badge bg-success fw-bold">{{ a.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ a.rate }}%</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted fst-italic text-center">No alerts currently</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Department-wise Readmission Rates -->
+    <h3 class="text-primary mb-3">Department-wise Readmission Rates</h3>
+    <div class="table-responsive mb-5">
+        <table id="departmentTable" class="table table-striped table-bordered align-middle text-center shadow-sm">
+            <thead class="table-dark">
+                <tr>
+                    <th>Department</th>
+                    <th>Readmission Rate (%)</th>
+                    <th>Alert Status</th>
+                    <th>Recommended Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in departments %}
+                {% set rate = d['Readmission Rate (%)'] if d['Readmission Rate (%)'] > 2 else 2 %}
+                <tr>
+                    <td>{{ d['Department'] }}</td>
+                    <td>
+                        <div class="progress" style="height:25px;">
+                            <div class="progress-bar 
+                                {% if d['Alert Status'] == 'High' %}bg-danger
+                                {% elif d['Alert Status'] == 'Medium' %}bg-warning text-dark
+                                {% else %}bg-success{% endif %}" 
+                                role="progressbar" style="width: {{ rate*2 }}%;" aria-valuenow="{{ rate }}" aria-valuemin="0" aria-valuemax="100">
+                                {{ "%.2f"|format(d['Readmission Rate (%)']) }}%
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        {% if d['Alert Status'] == 'High' %}
+                        <span class="text-danger fw-bold">{{ d['Alert Status'] }}</span>
+                        {% elif d['Alert Status'] == 'Medium' %}
+                        <span class="text-warning fw-bold">{{ d['Alert Status'] }}</span>
+                        {% else %}
+                        <span class="text-success fw-bold">{{ d['Alert Status'] }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span data-bs-toggle="tooltip" title="{{ d['Recommended Action'] }}">{{ d['Recommended Action'] }}</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Top 5 High-Risk Patients -->
+    <h3 class="text-primary mb-3">Top 5 High-Risk Patients</h3>
+    <div class="table-responsive mb-5">
+        <table id="patientsTable" class="table table-striped table-bordered align-middle text-center shadow-sm">
+            <thead class="table-dark">
+                <tr>
+                    <th>Patient Name</th>
+                    <th>Risk Level</th>
+                    <th>Score</th>
+                    <th>Last Alert</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in top_patients %}
+                <tr>
+                    <td>{{ p['name'] }}</td>
+                    <td>
+                        {% if p['risk'] == 'High' %}
+                        <span class="badge bg-danger fw-bold">{{ p['risk'] }}</span>
+                        {% elif p['risk'] == 'Medium' %}
+                        <span class="badge bg-warning text-dark fw-bold">{{ p['risk'] }}</span>
+                        {% else %}
+                        <span class="badge bg-success fw-bold">{{ p['risk'] }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ "%.2f"|format(p['score']*100) }}%</td>
+                    <td>{{ p.get('timestamp','N/A') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Download Monthly Report -->
+    <div class="text-center mb-5">
+        <button id="downloadReportBtn" class="btn btn-primary btn-lg fw-bold">
+            <span id="btnText">📄 Download Monthly Report</span>
+            <span id="btnSpinner" class="spinner-border spinner-border-sm ms-2 d-none" role="status" aria-hidden="true"></span>
+        </button>
+    </div>
+
+    <!-- Footer -->
+    <footer class="text-center text-muted mt-5">
+        <p>© 2025 SmartCare Health Portal | Managed by COO</p>
+    </footer>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+<script>
+$(document).ready(function() {
+    $('#departmentTable').DataTable({ "paging": false, "info": false, "order": [[1,"desc"]] });
+    $('#patientsTable').DataTable({ "paging": false, "info": false, "order": [[2,"desc"]] });
+
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    tooltipTriggerList.map(function (tooltipTriggerEl) { return new bootstrap.Tooltip(tooltipTriggerEl) });
+
+    $('#downloadReportBtn').on('click', function() {
+        const btn = $(this);
+        const spinner = $('#btnSpinner');
+        const btnText = $('#btnText');
+        spinner.removeClass('d-none');
+        btnText.text('Generating...');
+        const link = document.createElement('a');
+        link.href = '{{ url_for("admin_report") }}';
+        link.download = '';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => { spinner.addClass('d-none'); btnText.text('📄 Download Monthly Report'); }, 2000);
+    });
+});
+</script>
+
+<style>
+/* Risk colors */
+.low-risk { color: #28a745; font-weight: bold; }
+.medium-risk { color: #ffc107; font-weight: bold; }
+.high-risk { color: #dc3545; font-weight: bold; }
+
+/* Table styling */
+.table-hover tbody tr:hover { background-color: #f1f5f9; transition: 0.3s; }
+.table-bordered { border-radius: 0.5rem; }
+
+/* Card & chart improvements */
+.card { border-radius: 1rem; }
+.chart-container { overflow-x:auto; }
+
+/* Buttons */
+.btn-lg { padding: 0.75rem 1.5rem; }
+</style>
+{% endblock %}

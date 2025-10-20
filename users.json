@@ -1,0 +1,37 @@
+{
+  "doctor1": {
+    "password": "scrypt:32768:8:1$cDuYzFWc59kuwJGV$b89d1f1a34a469ca4ae3aad083bd4218dd4444debc40012af39250dccc3b10ecf46895d0c17f1e996295022e0b78aca665f07a85fd25fc869ea563766a01be35",
+    "role": "doctor",
+    "name": "Dr. Smith"
+  },
+  "patient1": {
+    "password": "scrypt:32768:8:1$HXv65Z6nPYwAmCGg$43f677d368e4a8e806dc65cc939b1f69323352881d47dc2ace72599c550083a61fb8c62389624311601b033d4fb443081cff3adf431e874861722ddc78ab1566",
+    "role": "patient",
+    "name": "John Doe"
+  },
+  "admin1": {
+    "password": "scrypt:32768:8:1$05KXk0UszvAAdFL6$5934c477d0e4cdac687e32c93a35603b8ef0d59d75e9bd860086cbf343a6e1ea7017feed2ee179c0a56ccf0d75c798ccbd6e69aca2b202fc9d0e42b843f08f84",
+    "role": "admin",
+    "name": "Admin"
+  },
+  "John833": {
+    "password": "scrypt:32768:8:1$TuGF0yktUFa8CV1L$95107de44fc2494b2639bd061d25cf681da593bd87855a28619ee24feae23c5e750d7e1b187e196bcface0f0297a254c599cb8c69cdc47164d696695f7fdf3ea",
+    "role": "admin",
+    "name": "John Doe"
+  },
+  "Sarah1234": {
+    "password": "scrypt:32768:8:1$t0IAW0u8GzgC34WJ$5393b88cbb039cc1834f256d6a4ebe9881426e840dcf1bad46250c706c22c11c3393e09c1e7f387e18a69bde6131927331fdaca6185af2cbf4c9375f4fa7b634",
+    "name": "Dr. Sarah Williams",
+    "role": "doctor"
+  },
+  "john123": {
+    "password": "scrypt:32768:8:1$4EBmxl1BHivvDFv5$d637891461d22de635e4feb90bcba58bdd7c55622d35d367b027966ea7717c5b236ab9706da84d8fc5b8f4d0e37a5c19abd1f35112603cc8356ef58388175e09",
+    "name": "John Smith",
+    "role": "patient"
+  },
+  "john1234": {
+    "password": "scrypt:32768:8:1$f67zcpAoDqJVkHjL$1e56f78446c2583e1440f62e3cb1ebc6cef7e273bb076bf91d59b83c98cc1f9b287af462eadbf984598e37a731e61f6ddf21c2758375d95553a6c9afcac43eae",
+    "name": "John Day",
+    "role": "patient"
+  }
+}

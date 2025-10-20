@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+{% set pd = patient_data if patient_data is defined else {} %}
+
+{% block content %}
+<div class="container my-5">
+  <h2 class="text-center text-primary mb-2">
+    🩺 Patient Dashboard - {{ session.get('name', 'Patient') }}
+  </h2>
+  <p class="text-center text-muted mb-4">
+    View your readmission risk and receive SMS alerts with your care plan
+  </p>
+
+  <div class="row justify-content-center">
+    <div class="col-md-6">
+      <div class="card shadow p-4 rounded">
+        <h4 class="text-center mb-3">Your Details</h4>
+
+        <form id="patientForm">
+          <div id="spinner" class="d-none text-center mb-2">⏳ Calculating your risk...</div>
+
+          <!-- Basic Info -->
+          <div class="mb-3">
+            <label class="form-label" for="age">Age:</label>
+            <input type="number" id="age" class="form-control" name="age" min="0" max="120"
+                   value="{{ pd.get('age',0) }}" required>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label" for="patient_number">Phone Number:</label>
+            <input type="tel" id="patient_number" class="form-control" name="patient_number"
+                   placeholder="+61 4XX XXX XXX" value="{{ pd.get('patient_number','') }}" required>
+            <small class="form-text text-muted">We'll send your care plan and risk updates via SMS.</small>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label" for="time_in_hospital">Time in Hospital (days):</label>
+            <input type="number" id="time_in_hospital" class="form-control" name="time_in_hospital"
+                   min="0" value="{{ pd.get('time_in_hospital',0) }}" required>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label" for="num_lab_procedures">Number of Lab Procedures:</label>
+            <input type="number" id="num_lab_procedures" class="form-control" name="num_lab_procedures"
+                   min="0" max="100" value="{{ pd.get('num_lab_procedures',0) }}" required>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label" for="num_medications">Number of Medications:</label>
+            <input type="number" id="num_medications" class="form-control" name="num_medications"
+                   min="0" max="50" value="{{ pd.get('num_medications',0) }}" required>
+          </div>
+
+          <!-- Categorical Fields -->
+          <div class="mb-3">
+            <label class="form-label" for="change">Change in Medication?</label>
+            <select class="form-select" id="change" name="change">
+              <option value="No" {% if pd.get('change','No') == 'No' %}selected{% endif %}>No</option>
+              <option value="Ch" {% if pd.get('change','No') == 'Ch' %}selected{% endif %}>Yes</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label" for="diabetesMed">Diabetes Medication?</label>
+            <select class="form-select" id="diabetesMed" name="diabetesMed">
+              <option value="Yes" {% if pd.get('diabetesMed','No') == 'Yes' %}selected{% endif %}>Yes</option>
+              <option value="No" {% if pd.get('diabetesMed','No') == 'No' %}selected{% endif %}>No</option>
+            </select>
+          </div>
+
+          <!-- Medications -->
+          {% for med in ['acarbose','acetohexamide','metformin','glipizide','insulin'] %}
+          <div class="mb-3">
+            <label class="form-label" for="{{ med }}">{{ med|capitalize }}:</label>
+            <select class="form-select" id="{{ med }}" name="{{ med }}">
+              <option value="No" {% if pd.get(med,'No')=='No' %}selected{% endif %}>No</option>
+              <option value="Steady" {% if pd.get(med,'No')=='Steady' %}selected{% endif %}>Steady</option>
+              <option value="Up" {% if pd.get(med,'No')=='Up' %}selected{% endif %}>Increasing</option>
+            </select>
+          </div>
+          {% endfor %}
+
+          <button type="button" id="checkRiskBtn" class="btn btn-primary w-100 mt-3">
+            🔍 Check My Risk
+          </button>
+          <button type="button" id="downloadBtn" class="btn btn-success w-100 mt-2" disabled>
+            📄 Download Care Plan
+          </button>
+        </form>
+
+        <!-- Risk Result -->
+        <div id="riskResult" class="mt-4 p-3 rounded d-none text-center" aria-live="polite"></div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+    <div id="riskToast" class="toast align-items-center text-white bg-danger border-0" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body" id="toastBody">
+          ⚠️ High readmission risk! Contact your doctor immediately.
+        </div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+    </div>
+  </div>
+
+  {% if patient_history %}
+  <div class="mt-5">
+    <h4>📋 Your History</h4>
+    <div class="table-responsive">
+      <table class="table table-striped table-bordered align-middle text-center">
+        <thead class="table-dark">
+          <tr>
+            <th>Timestamp</th>
+            <th>Readmission Risk</th>
+            <th>Risk Score</th>
+            <th>Time in Hospital</th>
+            <th>Medications</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in patient_history %}
+          <tr class="{% if row.ai_risk=='High' %}high-risk{% elif row.ai_risk=='Medium' %}medium-risk{% else %}low-risk{% endif %}">
+            <td>{{ row.timestamp }}</td>
+            <td>{{ row.ai_risk }}</td>
+            <td>{{ (row.ai_risk_score * 100)|round(1) }}%</td>
+            <td>{{ row.time_in_hospital }}</td>
+            <td>{{ row.num_medications }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const checkBtn = document.querySelector("#checkRiskBtn");
+  const downloadBtn = document.querySelector("#downloadBtn");
+  const spinner = document.getElementById("spinner");
+  const box = document.getElementById("riskResult");
+  const toastEl = document.getElementById("riskToast");
+  const patientName = "{{ pd.get('name', session.get('name','Patient')) }}";
+
+  checkBtn.addEventListener("click", async function () {
+    spinner.classList.remove("d-none");
+    checkBtn.disabled = true;
+    box.classList.add("d-none");
+    const formData = Object.fromEntries(new FormData(document.getElementById("patientForm")));
+
+    try {
+      const resp = await fetch("/predict", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+      const res = await resp.json();
+
+      const risk = res.risk_level || "Unknown";
+      const riskScore = parseFloat(res.risk_score || 0);
+      const scoreText = riskScore.toFixed(1) + "%";
+
+      let recommendation = "";
+      let riskClass = "";
+      if (risk === "High") {
+        recommendation = "⚠️ High risk! Immediate medical attention required.";
+        riskClass = "high-risk";
+        new bootstrap.Toast(toastEl).show();
+      } else if (risk === "Medium") {
+        recommendation = "Monitor closely and follow up with your doctor.";
+        riskClass = "medium-risk";
+      } else {
+        recommendation = "Low risk. Maintain routine care.";
+        riskClass = "low-risk";
+      }
+
+      box.className = `mt-4 p-3 rounded text-center d-block ${riskClass}`;
+      box.innerHTML = `<h4>Predicted Risk: ${risk}</h4>
+                       <p>Risk Score: ${scoreText}</p>
+                       <p>${recommendation}</p>`;
+
+      // SMS only
+      if (["High", "Medium"].includes(risk) && formData.patient_number) {
+        fetch("/send_sms", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            phone: formData.patient_number,
+            message: `Dear ${patientName}, your readmission risk is ${risk} (${scoreText}). Please follow your care plan.`
+          }),
+        }).then(() => console.log("📱 SMS sent via Twilio"))
+          .catch(err => console.error("SMS send error", err));
+      }
+
+      localStorage.setItem("patient_data", JSON.stringify({
+        ...formData,
+        ai_risk: risk,
+        ai_risk_score: riskScore
+      }));
+
+      downloadBtn.disabled = false;
+    } catch (err) {
+      console.error("Prediction error:", err);
+      alert("Error predicting risk. Check console.");
+    } finally {
+      spinner.classList.add("d-none");
+      checkBtn.disabled = false;
+    }
+  });
+
+  downloadBtn.addEventListener("click", async function () {
+    const patientData = JSON.parse(localStorage.getItem("patient_data") || "{}");
+    if (!patientData.ai_risk) {
+      alert("Please check your risk first.");
+      return;
+    }
+
+    try {
+      const resp = await fetch("/patient_pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patientData),
+      });
+      const blob = await resp.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${patientData.name || "patient"}_care_plan.pdf`.replace(/\s+/g, "_");
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("PDF download error:", err);
+    }
+  });
+});
+</script>
+
+<style>
+.low-risk { background-color: #d4edda; color: #155724; font-weight:bold; }
+.medium-risk { background-color: #fff3cd; color: #856404; font-weight:bold; }
+.high-risk { background-color: #f8d7da; color: #721c24; font-weight:bold; }
+.card { transition: transform 0.2s; }
+.card:hover { transform: scale(1.02); }
+table th, table td { text-align: center; vertical-align: middle; }
+#spinner { font-weight:bold; color: #0d6efd; }
+</style>
+{% endblock %}

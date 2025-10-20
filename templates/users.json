@@ -1,0 +1,17 @@
+{
+  "admin": {
+    "password": "scrypt:32768:8:1$hwDsHKGmIOJH7a39$febfc405bb28835985aca7b343391641e598bcee7f75a0c59d24eb1a60870aec19fdea62517fad43d7a231f3df96d2bf925d2c251064a8a5aa5e857251bde21a",
+    "role": "admin",
+    "name": "Admin User"
+  },
+  "doctor": {
+    "password": "scrypt:32768:8:1$0n30cXVT0xFPcBi9$d55f886c584e83d24cb5adc6718d9dbbef526a0c732a2537333c003c9951540efc0bcec5eff0dc17342630714bfc0817e43bcf4a99d97e24e7dc736a28d40414",
+    "role": "doctor",
+    "name": "Dr. Sarah Williams"
+  },
+  "patient": {
+    "password": "scrypt:32768:8:1$K5ejPcJLYnaFDl6h$5e14c4c7d4fd7f56d393322931d4133441c73cb3cc0e4d04f5ff147eb12c5faaa85429f32f1d486c95d779151823791fc22a3513ee7155ce60fd4c94137824d2",
+    "role": "patient",
+    "name": "John Smith"
+  }
+}

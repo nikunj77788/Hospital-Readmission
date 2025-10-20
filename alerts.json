@@ -1,0 +1,44 @@
+[
+  {
+    "timestamp": "2025-10-08T23:43:23.913947Z",
+    "department": "Trauma",
+    "rate": 53.19,
+    "message": "Department Trauma readmission rate 53.19% exceeds threshold 20.0%"
+  },
+  {
+    "timestamp": "2025-10-08T23:43:23.914000Z",
+    "department": "Emergency",
+    "rate": 47.5,
+    "message": "Department Emergency readmission rate 47.5% exceeds threshold 20.0%"
+  },
+  {
+    "timestamp": "2025-10-08T23:43:23.914030Z",
+    "department": "Urgent",
+    "rate": 46.97,
+    "message": "Department Urgent readmission rate 46.97% exceeds threshold 20.0%"
+  },
+  {
+    "timestamp": "2025-10-08T23:43:23.914053Z",
+    "department": "Not Available",
+    "rate": 46.52,
+    "message": "Department Not Available readmission rate 46.52% exceeds threshold 20.0%"
+  },
+  {
+    "timestamp": "2025-10-08T23:43:23.914074Z",
+    "department": "Elective",
+    "rate": 41.1,
+    "message": "Department Elective readmission rate 41.1% exceeds threshold 20.0%"
+  },
+  {
+    "timestamp": "2025-10-08T23:43:23.914093Z",
+    "department": "Other",
+    "rate": 32.64,
+    "message": "Department Other readmission rate 32.64% exceeds threshold 20.0%"
+  },
+  {
+    "timestamp": "2025-10-08T23:43:23.914112Z",
+    "department": "Newborn",
+    "rate": 30.0,
+    "message": "Department Newborn readmission rate 30.0% exceeds threshold 20.0%"
+  }
+]
