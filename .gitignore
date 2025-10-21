@@ -1,16 +1,19 @@
-# Python cache
+# Python
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
+*.swp
+*.swo
 
 # Virtual environment
 venv/
+env/
+*.env
 
-# System files
+# MacOS
 .DS_Store
 
-# Secrets / Environment
-.env
-
-# Optional: temporary files
-*.log
+# IDE files
+.vscode/
+.idea/
