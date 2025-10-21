@@ -6,38 +6,36 @@
     <!-- Dashboard Header -->
     <div class="text-center mb-5">
         <h1 class="text-primary fw-bold">🏥 Hospital Admin Dashboard</h1>
-        <p class="text-muted">Welcome, {{ session['name'] }}! Monitor readmission statistics and system alerts.</p>
+        <p class="text-muted">Welcome, {{ session.get('name','Admin') }}! Monitor readmission statistics and system alerts.</p>
     </div>
 
     <!-- Navigation Buttons -->
     <div class="d-flex justify-content-center gap-3 flex-wrap mb-5">
         <a href="/doctor" class="btn btn-outline-primary fw-bold">Doctor Portal</a>
         <a href="/patient" class="btn btn-outline-secondary fw-bold">Patient Portal</a>
-        <a href="/admin" class="btn btn-outline-success fw-bold">Admin Dashboard</a>
+        <a href="/admin" class="btn btn-outline-success fw-bold active">Admin Dashboard</a>
         <a href="/logout" class="btn btn-outline-danger fw-bold">Logout</a>
     </div>
 
     <!-- Charts Section -->
     <div class="row g-4 mb-5">
-        <!-- Department Readmission Rates -->
         {% if graph_html %}
         <div class="col-12 col-lg-6">
             <div class="card shadow-sm h-100">
                 <div class="card-body">
                     <h4 class="card-title text-center text-primary mb-3">📊 Department Readmission Rates</h4>
-                    <div class="chart-container overflow-auto">{{ graph_html|safe }}</div>
+                    <div class="chart-container" style="min-height:400px;">{{ graph_html|safe }}</div>
                 </div>
             </div>
         </div>
         {% endif %}
 
-        <!-- Monthly Average Risk Trend -->
         {% if trend_html %}
         <div class="col-12 col-lg-6">
             <div class="card shadow-sm h-100">
                 <div class="card-body">
                     <h4 class="card-title text-center text-primary mb-3">📈 Monthly Average Risk Trend</h4>
-                    <div class="chart-container overflow-auto">{{ trend_html|safe }}</div>
+                    <div class="chart-container" style="min-height:400px;">{{ trend_html|safe }}</div>
                 </div>
             </div>
         </div>
@@ -48,7 +46,7 @@
     <div class="card mb-5 shadow-sm">
         <div class="card-body">
             <h3 class="card-title text-primary mb-3">📢 Department Alerts</h3>
-            {% if alerts_list and alerts_list|length > 0 %}
+            {% if alerts_list %}
             <div class="table-responsive">
                 <table class="table table-hover table-bordered align-middle text-center">
                     <thead class="table-light">
@@ -60,18 +58,18 @@
                     </thead>
                     <tbody>
                         {% for a in alerts_list %}
-                        <tr>
-                            <td>{{ a.department }}</td>
+                        {% set status = a.get('status','Low') %}
+                        <tr class="{% if status=='High' %}table-danger{% elif status=='Medium' %}table-warning{% endif %}">
+                            <td>{{ a.get('department','Unknown') }}</td>
                             <td>
-                                {% if a.status == "High" %}
-                                <span class="badge bg-danger fw-bold">{{ a.status }}</span>
-                                {% elif a.status == "Medium" %}
-                                <span class="badge bg-warning text-dark fw-bold">{{ a.status }}</span>
-                                {% else %}
-                                <span class="badge bg-success fw-bold">{{ a.status }}</span>
-                                {% endif %}
+                                <span class="badge 
+                                    {% if status == 'High' %}bg-danger
+                                    {% elif status == 'Medium' %}bg-warning text-dark
+                                    {% else %}bg-success{% endif %} fw-bold">
+                                    {{ status }}
+                                </span>
                             </td>
-                            <td>{{ a.rate }}%</td>
+                            <td>{{ "%.2f"|format(a.get('rate',0)) }}%</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -97,31 +95,33 @@
             </thead>
             <tbody>
                 {% for d in departments %}
-                {% set rate = d['Readmission Rate (%)'] if d['Readmission Rate (%)'] > 2 else 2 %}
-                <tr>
-                    <td>{{ d['Department'] }}</td>
+                {% set rate = d.get('Readmission Rate (%)',0) %}
+                {% set rate_safe = rate if rate|float > 2 else 2 %}
+                {% set alert_status = d.get('Alert Status','Low') %}
+                <tr class="{% if alert_status=='High' %}table-danger{% elif alert_status=='Medium' %}table-warning{% endif %}">
+                    <td>{{ d.get('Department','Unknown') }}</td>
                     <td>
                         <div class="progress" style="height:25px;">
                             <div class="progress-bar 
-                                {% if d['Alert Status'] == 'High' %}bg-danger
-                                {% elif d['Alert Status'] == 'Medium' %}bg-warning text-dark
+                                {% if alert_status == 'High' %}bg-danger
+                                {% elif alert_status == 'Medium' %}bg-warning text-dark
                                 {% else %}bg-success{% endif %}" 
-                                role="progressbar" style="width: {{ rate*2 }}%;" aria-valuenow="{{ rate }}" aria-valuemin="0" aria-valuemax="100">
-                                {{ "%.2f"|format(d['Readmission Rate (%)']) }}%
+                                role="progressbar" style="width: {{ rate_safe*2 }}%;" aria-valuenow="{{ rate_safe }}" aria-valuemin="0" aria-valuemax="100">
+                                {{ "%.2f"|format(rate) }}%
                             </div>
                         </div>
                     </td>
                     <td>
-                        {% if d['Alert Status'] == 'High' %}
-                        <span class="text-danger fw-bold">{{ d['Alert Status'] }}</span>
-                        {% elif d['Alert Status'] == 'Medium' %}
-                        <span class="text-warning fw-bold">{{ d['Alert Status'] }}</span>
-                        {% else %}
-                        <span class="text-success fw-bold">{{ d['Alert Status'] }}</span>
-                        {% endif %}
+                        <span class="{% if alert_status == 'High' %}text-danger
+                                     {% elif alert_status == 'Medium' %}text-warning
+                                     {% else %}text-success{% endif %} fw-bold">
+                            {{ alert_status }}
+                        </span>
                     </td>
                     <td>
-                        <span data-bs-toggle="tooltip" title="{{ d['Recommended Action'] }}">{{ d['Recommended Action'] }}</span>
+                        <span data-bs-toggle="tooltip" title="{{ d.get('Recommended Action','Routine follow-up.') }}">
+                            {{ d.get('Recommended Action','Routine follow-up.') }}
+                        </span>
                     </td>
                 </tr>
                 {% endfor %}
@@ -143,18 +143,18 @@
             </thead>
             <tbody>
                 {% for p in top_patients %}
-                <tr>
-                    <td>{{ p['name'] }}</td>
+                {% set risk = p.get('risk','Low') %}
+                <tr class="{% if risk=='High' %}table-danger{% elif risk=='Medium' %}table-warning{% endif %}">
+                    <td>{{ p.get('name','N/A') }}</td>
                     <td>
-                        {% if p['risk'] == 'High' %}
-                        <span class="badge bg-danger fw-bold">{{ p['risk'] }}</span>
-                        {% elif p['risk'] == 'Medium' %}
-                        <span class="badge bg-warning text-dark fw-bold">{{ p['risk'] }}</span>
-                        {% else %}
-                        <span class="badge bg-success fw-bold">{{ p['risk'] }}</span>
-                        {% endif %}
+                        <span class="badge 
+                            {% if risk == 'High' %}bg-danger
+                            {% elif risk == 'Medium' %}bg-warning text-dark
+                            {% else %}bg-success{% endif %} fw-bold">
+                            {{ risk }}
+                        </span>
                     </td>
-                    <td>{{ "%.2f"|format(p['score']*100) }}%</td>
+                    <td>{{ "%.2f"|format(p.get('score',0)*100) }}%</td>
                     <td>{{ p.get('timestamp','N/A') }}</td>
                 </tr>
                 {% endfor %}
@@ -164,10 +164,10 @@
 
     <!-- Download Monthly Report -->
     <div class="text-center mb-5">
-        <button id="downloadReportBtn" class="btn btn-primary btn-lg fw-bold">
+        <a href="{{ url_for('admin_report') }}" class="btn btn-primary btn-lg fw-bold" id="downloadReportBtn">
             <span id="btnText">📄 Download Monthly Report</span>
             <span id="btnSpinner" class="spinner-border spinner-border-sm ms-2 d-none" role="status" aria-hidden="true"></span>
-        </button>
+        </a>
     </div>
 
     <!-- Footer -->
@@ -185,24 +185,29 @@
 
 <script>
 $(document).ready(function() {
-    $('#departmentTable').DataTable({ "paging": false, "info": false, "order": [[1,"desc"]] });
-    $('#patientsTable').DataTable({ "paging": false, "info": false, "order": [[2,"desc"]] });
+    $('#departmentTable').DataTable({ 
+        paging: false, 
+        info: false, 
+        order: [[1,"desc"]],
+        language: { search: "Filter Departments:" }
+    });
+    $('#patientsTable').DataTable({ 
+        paging: false, 
+        info: false, 
+        order: [[2,"desc"]],
+        language: { search: "Filter Patients:" }
+    });
 
+    // Initialize Bootstrap tooltips
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
     tooltipTriggerList.map(function (tooltipTriggerEl) { return new bootstrap.Tooltip(tooltipTriggerEl) });
 
+    // Download button spinner
     $('#downloadReportBtn').on('click', function() {
-        const btn = $(this);
-        const spinner = $('#btnSpinner');
         const btnText = $('#btnText');
+        const spinner = $('#btnSpinner');
         spinner.removeClass('d-none');
         btnText.text('Generating...');
-        const link = document.createElement('a');
-        link.href = '{{ url_for("admin_report") }}';
-        link.download = '';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
         setTimeout(() => { spinner.addClass('d-none'); btnText.text('📄 Download Monthly Report'); }, 2000);
     });
 });
@@ -220,7 +225,7 @@ $(document).ready(function() {
 
 /* Card & chart improvements */
 .card { border-radius: 1rem; }
-.chart-container { overflow-x:auto; }
+.chart-container { overflow-x:auto; min-height:300px; }
 
 /* Buttons */
 .btn-lg { padding: 0.75rem 1.5rem; }

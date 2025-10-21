@@ -146,12 +146,12 @@ document.addEventListener("DOMContentLoaded", function () {
   const spinner = document.getElementById("spinner");
   const box = document.getElementById("riskResult");
   const toastEl = document.getElementById("riskToast");
-  const patientName = "{{ pd.get('name', session.get('name','Patient')) }}";
 
-  checkBtn.addEventListener("click", async function () {
+  async function submitPatientForm() {
     spinner.classList.remove("d-none");
     checkBtn.disabled = true;
     box.classList.add("d-none");
+
     const formData = Object.fromEntries(new FormData(document.getElementById("patientForm")));
 
     try {
@@ -160,19 +160,34 @@ document.addEventListener("DOMContentLoaded", function () {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
-      const res = await resp.json();
 
-      const risk = res.risk_level || "Unknown";
-      const riskScore = parseFloat(res.risk_score || 0);
-      const scoreText = riskScore.toFixed(1) + "%";
+      if (!resp.ok) throw new Error(await resp.text());
+      
+      // Read PDF blob
+      const blob = await resp.blob();
+      const url = window.URL.createObjectURL(blob);
+
+      // Create a temporary anchor to download PDF
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${formData.name || "patient"}_care_plan.pdf`.replace(/\s+/g, "_");
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
+      // Read risk info from response headers (sent from Flask)
+      const riskLevel = resp.headers.get("X-Risk-Level") || "Unknown";
+      const riskScore = parseFloat(resp.headers.get("X-Risk-Score") || 0).toFixed(1);
+      const smsSent = resp.headers.get("X-SMS-Sent") || "No";
 
       let recommendation = "";
       let riskClass = "";
-      if (risk === "High") {
+      if (riskLevel === "High") {
         recommendation = "⚠️ High risk! Immediate medical attention required.";
         riskClass = "high-risk";
         new bootstrap.Toast(toastEl).show();
-      } else if (risk === "Medium") {
+      } else if (riskLevel === "Medium") {
         recommendation = "Monitor closely and follow up with your doctor.";
         riskClass = "medium-risk";
       } else {
@@ -181,30 +196,14 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       box.className = `mt-4 p-3 rounded text-center d-block ${riskClass}`;
-      box.innerHTML = `<h4>Predicted Risk: ${risk}</h4>
-                       <p>Risk Score: ${scoreText}</p>
-                       <p>${recommendation}</p>`;
+      box.innerHTML = `<h4>Predicted Risk: ${riskLevel}</h4>
+                       <p>Risk Score: ${riskScore}%</p>
+                       <p>${recommendation}</p>
+                       <p>SMS Sent: ${smsSent}</p>`;
 
-      // SMS only
-      if (["High", "Medium"].includes(risk) && formData.patient_number) {
-        fetch("/send_sms", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            phone: formData.patient_number,
-            message: `Dear ${patientName}, your readmission risk is ${risk} (${scoreText}). Please follow your care plan.`
-          }),
-        }).then(() => console.log("📱 SMS sent via Twilio"))
-          .catch(err => console.error("SMS send error", err));
-      }
-
-      localStorage.setItem("patient_data", JSON.stringify({
-        ...formData,
-        ai_risk: risk,
-        ai_risk_score: riskScore
-      }));
-
+      localStorage.setItem("patient_data", JSON.stringify({...formData, ai_risk: riskLevel, ai_risk_score: riskScore}));
       downloadBtn.disabled = false;
+
     } catch (err) {
       console.error("Prediction error:", err);
       alert("Error predicting risk. Check console.");
@@ -212,7 +211,9 @@ document.addEventListener("DOMContentLoaded", function () {
       spinner.classList.add("d-none");
       checkBtn.disabled = false;
     }
-  });
+  }
+
+  checkBtn.addEventListener("click", submitPatientForm);
 
   downloadBtn.addEventListener("click", async function () {
     const patientData = JSON.parse(localStorage.getItem("patient_data") || "{}");

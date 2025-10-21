@@ -18,59 +18,10 @@ import os
 from notify_sms import send_sms  #updated Twilio SMS function
 from flask import Flask, request, jsonify, session
 import pandas as pd
+from notify_sms import notify_patient_sms, send_sms
+from openpyxl.styles import Font, PatternFill
 
 
-def send_patient_email_with_careplan(mail, patient_email, patient_name, risk_score, risk_level, pdf_data):
-    """
-    Sends an email to patient with explanation and attached care plan PDF.
-    """
-    if not patient_email:
-        print("⚠️ No patient email provided.")
-        return False
-
-    risk_percent = f"{risk_score*100:.1f}%"
-    if risk_level == "High":
-        message_body = (
-            f"Hello {patient_name},\n\n"
-            f"Our AI health system has found your readmission risk to be HIGH ({risk_percent}).\n\n"
-            "Please follow your care plan carefully and contact your doctor immediately.\n\n"
-            "Your personalized care plan is attached.\n\n"
-            "Take care,\nYour Hospital Care Team"
-        )
-    elif risk_level == "Medium":
-        message_body = (
-            f"Hello {patient_name},\n\n"
-            f"Your readmission risk is MEDIUM ({risk_percent}).\n\n"
-            "Please follow your care plan and monitor your health.\n\n"
-            "Your personalized care plan is attached.\n\n"
-            "Stay healthy,\nYour Hospital Care Team"
-        )
-    else:
-        message_body = (
-            f"Hello {patient_name},\n\n"
-            f"Your readmission risk is LOW ({risk_percent}).\n\n"
-            "Continue following your care plan.\n\n"
-            "Best regards,\nYour Hospital Care Team"
-        )
-
-    try:
-        msg = Message(
-            subject=f"Your Readmission Risk Report – {risk_level} ({risk_percent})",
-            sender=app.config['MAIL_USERNAME'],
-            recipients=[patient_email]
-        )
-        msg.body = message_body
-        msg.attach(
-            filename=f"{patient_name.replace(' ', '_')}_care_plan.pdf",
-            content_type="application/pdf",
-            data=pdf_data.getvalue()
-        )
-        mail.send(msg)
-        print(f"✅ Email sent to {patient_email}")
-        return True
-    except Exception as e:
-        print(f"⚠️ Failed to send email: {e}")
-        return False
 
 
 
@@ -100,6 +51,19 @@ def age_to_bin(age):
     else: return "[90-100)"
 
 
+# --------------------------
+# Helper function
+# --------------------------
+def safe_age_to_int(age):
+    """
+    Safely convert age to int.
+    Returns 0 if conversion fails.
+    """
+    try:
+        return int(age)
+    except (ValueError, TypeError):
+        return 0
+
 
 def patient_risk_score(row):
     """
@@ -118,7 +82,7 @@ def patient_risk_score(row):
         risk = 0.0
 
         # --- Age Factor ---
-        age = int(row.get("age", 0) or 0)
+        age = safe_age_to_int(row.get("age", 0))
         if age >= 70:
             risk += 0.25
         elif age >= 60:
@@ -200,50 +164,6 @@ def notify_high_risk():
         }
         in_app_alerts.append(alert)
 
-        # --- Email alert to doctor ---
-        try:
-            msg = Message(
-                f"🚨 High-Risk Patient Alert: {patient_name}",
-                sender="your_email@gmail.com",  # replace with your email
-                recipients=["doctor_email@hospital.com"]  # replace with doctor email
-            )
-            msg.body = (
-                f"Patient ID: {patient_id}\n"
-                f"Name: {patient_name}\n"
-                f"Risk Score: {risk_score*100:.1f}%\n"
-                f"Recommendation: {recommendation}\n"
-                f"Time: {timestamp}"
-            )
-            mail.send(msg)
-        except Exception as e:
-            print("Failed to send doctor email:", e)
-
-        return jsonify({"status": "ok", "message": "Alert sent", "alert": alert})
-    else:
-        return jsonify({"status": "ok", "message": "Risk below threshold"})
-
-
-def send_alert_email(department, rate, status):
-    try:
-        msg = Message(
-            subject=f"[Alert] {department} Readmission Rate {status}",
-            sender=app.config['MAIL_USERNAME'],
-            recipients=['admin_email@example.com'],  # Replace with real admin emails
-        )
-        msg.body = (
-            f"Attention Admin,\n\n"
-            f"The {department} department has a readmission rate of {rate:.2f}% "
-            f"which exceeds the {status} threshold.\n\n"
-            "Please review the cases immediately.\n\n"
-            "SmartCare Health Dashboard"
-        )
-        mail.send(msg)
-        print(f"Alert email sent for {department}")
-    except Exception as e:
-        print(f"Failed to send email for {department}: {e}")
-
-
-
 # --- Role-Based Access Decorator ---
 from functools import wraps
 
@@ -307,37 +227,6 @@ def save_user(username, raw_password, role, name):
     users[username] = {"password": hashed, "role": role, "name": name}
     with open(USERS_FILE, "w") as f:
         json.dump(users, f)
-
-@app.route("/send_email", methods=["POST"])
-def send_email():
-    data = request.get_json()
-    if not data:
-        return jsonify({"error": "No data provided"}), 400
-
-    patient_name = data.get("name", "Patient")
-    patient_email = data.get("email")
-    risk_score = float(data.get("risk_score", 0))
-    risk_level = data.get("risk_level", "Low")
-
-    # Optional: create a simple PDF care plan
-    buffer = BytesIO()
-    c = canvas.Canvas(buffer)
-    c.setFont("Helvetica-Bold", 16)
-    c.drawString(100, 800, "🏥 Personalized Care Plan")
-    c.setFont("Helvetica", 12)
-    y = 760
-    c.drawString(50, y, f"Risk Level: {risk_level}")
-    y -= 20
-    c.drawString(50, y, f"Risk Score: {risk_score*100:.1f}%")
-    c.save()
-    buffer.seek(0)
-
-    success = send_patient_email_with_careplan(mail, patient_email, patient_name, risk_score, risk_level, buffer)
-    if success:
-        return jsonify({"status": "ok", "message": "Email sent"})
-    else:
-        return jsonify({"status": "error", "message": "Failed to send email"})
-
 
 # --------------------------
 # Routes
@@ -413,7 +302,8 @@ def align_and_append_row(df, data):
     return df
 
 
-# --- /predict route ---
+HIGH_RISK_THRESHOLD = 0.7  # adjust threshold if needed
+
 @app.route("/predict", methods=["POST"])
 def predict():
     global df
@@ -421,83 +311,65 @@ def predict():
     if not data:
         return jsonify({"error": "No data received"}), 400
 
+    # --- Patient info ---
     patient_name = data.get("name") or session.get("name") or "Unknown Patient"
     patient_id = data.get("patient_id") or "N/A"
     patient_number = data.get("patient_number")  # e.g., +61439157276
-    patient_email = data.get("email")  # optional
+    patient_email = data.get("email")
 
     # --- Predict AI risk ---
-    risk_score = min(max(patient_risk_score(data), 0.0), 1.0)
-    risk_level = ai_level(risk_score)
+    try:
+        risk_score = min(max(patient_risk_score(data), 0.0), 1.0)
+        risk_level = ai_level(risk_score)
+    except Exception as e:
+        print(f"⚠️ Error predicting risk: {e}")
+        return jsonify({"error": "Error predicting risk"}), 500
+
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     # --- Store patient data ---
-    data_to_store = {**data,
-                     "ai_risk_score": risk_score,
-                     "ai_risk": risk_level,
-                     "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                     "name": patient_name,
-                     "patient_id": patient_id,
-                     "department": data.get("department", "General Medicine")}
+    data_to_store = {
+        **data,
+        "ai_risk_score": risk_score,
+        "ai_risk": risk_level,
+        "timestamp": timestamp,
+        "name": patient_name,
+        "patient_id": patient_id,
+        "department": data.get("department", "General Medicine")
+    }
     if session.get("role") == "patient":
         data_to_store["username"] = session.get("username")
 
-    df = align_and_append_row(df, data_to_store)
+    new_row = pd.DataFrame([data_to_store]).dropna(axis=1, how="all")
+    df = pd.concat([df, new_row], ignore_index=True)
     df.to_csv(DATA_PATH, index=False)
 
-    # --- Update session history ---
-    history = session.get("patient_history", [])
-    history.append({
-        "timestamp": data_to_store["timestamp"],
-        "ai_risk": risk_level,
-        "ai_risk_score": risk_score,
-        "time_in_hospital": data.get("time_in_hospital", ""),
-        "num_medications": data.get("num_medications", "")
-    })
-    session["patient_history"] = history[-10:]
+    # --- In-app alert ---
+    if risk_score >= HIGH_RISK_THRESHOLD:
+        alert = {
+            "patient_id": patient_id,
+            "patient_name": patient_name,
+            "risk_score": risk_score,
+            "recommendation": "Follow care plan.",
+            "timestamp": timestamp
+        }
+        in_app_alerts.append(alert)
 
     # --- SMS Notification ---
     sms_sent = False
     if patient_number and risk_score >= HIGH_RISK_THRESHOLD:
         try:
-            message = f"Patient: {patient_name}\nRisk Level: {risk_level}\nRisk Score: {risk_score*100:.1f}%"
-            sms_sent = send_sms(patient_number, message)
-            print(f"✅ SMS sent to {patient_number}")
+            sms_sent = notify_patient_sms(
+                patient_number,
+                patient_name,
+                risk_level,
+                risk_score,
+                dry_run=False
+            )
         except Exception as e:
             print(f"⚠️ Failed to send SMS: {e}")
 
-    # --- Email Notification (optional) ---
-    email_sent = False
-    if patient_email and risk_score >= HIGH_RISK_THRESHOLD:
-        try:
-            buffer = BytesIO()
-            c = canvas.Canvas(buffer)
-            c.setFont("Helvetica-Bold", 16)
-            c.drawString(100, 800, "🏥 Personalized Care Plan")
-            c.setFont("Helvetica", 12)
-            y = 760
-            c.drawString(50, y, f"Predicted Risk Level: {risk_level}")
-            y -= 20
-            c.drawString(50, y, f"Risk Score: {risk_score*100:.1f}%")
-            c.save()
-            buffer.seek(0)
-            email_sent = send_patient_email_with_careplan(mail, patient_email, patient_name, risk_score, risk_level, buffer)
-        except Exception as e:
-            print(f"⚠️ Failed to send email: {e}")
-
-    return jsonify({
-        "name": patient_name,
-        "patient_id": patient_id,
-        "risk_level": risk_level,
-        "risk_score": round(risk_score * 100, 1),
-        "sms_sent": sms_sent,
-        "email_sent": email_sent
-    })
-
-
-# --- /patient_pdf route ---
-@app.route("/patient_pdf", methods=["POST"])
-def patient_pdf():
-    data = request.get_json() or {}
+    # --- PDF generation ---
     buffer = BytesIO()
     c = canvas.Canvas(buffer)
     c.setFont("Helvetica-Bold", 16)
@@ -505,7 +377,6 @@ def patient_pdf():
     c.setFont("Helvetica", 12)
     y = 760
 
-    # --- Patient Details ---
     for k, v in data.items():
         if k in ["ai_risk_score", "ai_risk", "recommendation", "email"]:
             continue
@@ -516,20 +387,8 @@ def patient_pdf():
             c.setFont("Helvetica", 12)
             y = 800
 
-    # --- AI Risk Score & Level ---
-    try:
-        risk_score = float(data.get("ai_risk_score", 0))
-    except ValueError:
-        risk_score = 0.0
-
-    # Determine risk level
-    risk_level = data.get("ai_risk", ai_level(risk_score))
-
-    # Correct percentage display
-    display_risk = risk_score if risk_score > 1 else risk_score * 100
+    display_risk = risk_score * 100
     risk_percent_str = f"{display_risk:.1f}%"
-
-    # Recommendation based on risk level
     if risk_level == "High":
         recommendation = "⚠️ High risk! Immediate follow-up required."
     elif risk_level == "Medium":
@@ -537,13 +396,11 @@ def patient_pdf():
     else:
         recommendation = "Low risk. Routine care."
 
-    # Ensure space for risk summary
     if y < 100:
         c.showPage()
         c.setFont("Helvetica", 12)
         y = 800
 
-    # --- AI Risk Summary Section ---
     c.setFont("Helvetica-Bold", 14)
     c.drawString(50, y, "📊 AI Risk Summary")
     y -= 25
@@ -557,33 +414,53 @@ def patient_pdf():
     c.save()
     buffer.seek(0)
 
-    filename = f"{(data.get('name') or 'patient').replace(' ', '_')}_care_plan.pdf"
+    filename = f"{(patient_name or 'patient').replace(' ', '_')}_care_plan.pdf"
 
-    # --- Optional: Send Email Automatically ---
-    patient_email = data.get("email")
+    # --- Email PDF if needed ---
     if patient_email and risk_level in ["High", "Medium"]:
         try:
             buffer.seek(0)
             send_patient_email_with_careplan(
-                mail, 
-                patient_email, 
-                data.get("name", "Patient"), 
-                risk_score, 
-                risk_level, 
+                mail,
+                patient_email,
+                patient_name,
+                risk_score,
+                risk_level,
                 buffer
             )
         except Exception as e:
             print(f"⚠️ Failed to send PDF email: {e}")
 
     buffer.seek(0)
-    return send_file(
-        buffer, 
-        as_attachment=True, 
-        download_name=filename, 
+
+    # --- Send PDF + metadata headers ---
+    response = send_file(
+        buffer,
+        as_attachment=True,
+        download_name=filename,
         mimetype="application/pdf"
     )
+    response.headers["X-Risk-Level"] = risk_level
+    response.headers["X-Risk-Score"] = f"{risk_score*100:.1f}"
+    response.headers["X-SMS-Sent"] = str(sms_sent)
 
-# --- Admin Dashboard (Enhanced for Stakeholder Requirements) ---
+    return response
+
+@app.route("/predict_json", methods=["POST"])
+def predict_json():
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No data received"}), 400
+
+    try:
+        risk_score = min(max(patient_risk_score(data), 0.0), 1.0)
+        risk_level = ai_level(risk_score)
+        return jsonify({"risk_score": risk_score, "risk_level": risk_level})
+    except Exception as e:
+        print("⚠️ Error predicting risk:", e)
+        return jsonify({"error": "Error predicting risk"}), 500
+
+
 @app.route("/admin")
 def admin():
     global df
@@ -592,60 +469,55 @@ def admin():
         return redirect("/login")
 
     # --- Ensure essential columns exist ---
-    if 'patient_id' not in df.columns:
-        df['patient_id'] = range(1, len(df) + 1)  # Unique IDs
+    essential_cols = {
+        "patient_id": range(1, len(df) + 1),
+        "name": [f"Patient {i+1}" for i in range(len(df))],
+        "department": "General",
+        "readmitted": 0,
+        "last_alert": pd.NaT
+    }
 
-    if 'department' not in df.columns:
-        df['department'] = "General"
-    else:
-        df['department'] = df['department'].fillna("General").replace('', 'General')
-
-    if 'name' not in df.columns:
-        df['name'] = ["Patient " + str(i + 1) for i in range(len(df))]
-    else:
-        missing_indices = df['name'].isna()
-        df.loc[missing_indices, 'name'] = ["Patient " + str(i + 1) for i in range(missing_indices.sum())]
-
-    if 'readmitted' not in df.columns:
-        df['readmitted'] = 0
-    df['readmitted'] = df['readmitted'].fillna(0)
-
-    if 'last_alert' not in df.columns:
-        df['last_alert'] = pd.NaT
-    df['last_alert'] = pd.to_datetime(df['last_alert'], errors='coerce')
+    for col, default in essential_cols.items():
+        if col not in df.columns:
+            df[col] = default
+        else:
+            if col == "name":
+                df['name'] = df['name'].fillna(pd.Series([f"Patient {i+1}" for i in range(len(df))]))
+            elif col == "department":
+                df['department'] = df['department'].fillna("General").replace('', 'General')
+            elif col == "readmitted":
+                df['readmitted'] = df['readmitted'].fillna(0)
+            elif col == "last_alert":
+                df['last_alert'] = pd.to_datetime(df['last_alert'], errors='coerce')
 
     # --- Compute AI risk scores ---
     df['ai_risk_score'] = df.apply(patient_risk_score, axis=1)
     df['ai_risk'] = df['ai_risk_score'].apply(ai_level)
 
-    # --- Department Alerts Generation ---
+    # --- Department Alerts ---
     alerts_list = []
     for dept, group in df.groupby("department"):
         if dept == "Unknown":
             continue
         high_pct = (group['ai_risk'] == "High").mean()
         medium_pct = (group['ai_risk'] == "Medium").mean()
-
         if high_pct > 0.3:
-            alerts_list.append({
-                "department": dept,
-                "rate": round(high_pct * 100, 2),
-                "status": "High"
-            })
+            status = "High"
+            rate = round(high_pct * 100, 2)
         elif medium_pct > 0.3:
-            alerts_list.append({
-                "department": dept,
-                "rate": round(medium_pct * 100, 2),
-                "status": "Medium"
-            })
+            status = "Medium"
+            rate = round(medium_pct * 100, 2)
+        else:
+            status = "Low"
+            rate = round((high_pct + medium_pct) * 100, 2)
+        alerts_list.append({"department": dept, "rate": rate, "status": status})
 
-    # --- Department-wise summary table ---
+    # --- Department Summary ---
     departments = []
     for dept, group in df.groupby("department"):
         readmission_rate = group['readmitted'].mean() * 100
         high_pct = (group['ai_risk'] == "High").mean()
         medium_pct = (group['ai_risk'] == "Medium").mean()
-
         if high_pct > 0.3:
             alert_status = "High"
         elif medium_pct > 0.3:
@@ -666,17 +538,25 @@ def admin():
             "Recommended Action": recommended_action
         })
 
-    # --- Top 5 High-Risk Patients (High only, unique by patient_id) ---
+    # --- Top 5 High-Risk Patients ---
     top_patients_df = df[df['ai_risk'] == "High"].sort_values("ai_risk_score", ascending=False)
     top_patients_df = top_patients_df.drop_duplicates(subset='patient_id').head(5)
-    top_patients_df['last_alert'] = top_patients_df['last_alert'].dt.strftime("%Y-%m-%d %H:%M:%S").fillna("N/A")
-    top_patients = top_patients_df[['name', 'ai_risk', 'ai_risk_score', 'last_alert']].rename(
-        columns={'ai_risk_score': 'score', 'ai_risk': 'risk', 'last_alert': 'timestamp'}
-    ).to_dict(orient='records')
+    top_patients_df['last_alert'] = top_patients_df['last_alert'].apply(
+        lambda x: x.strftime("%Y-%m-%d %H:%M:%S") if pd.notnull(x) else "N/A"
+    )
+
+    top_patients = []
+    for _, row in top_patients_df.iterrows():
+        top_patients.append({
+            "name": row['name'],
+            "risk": row['ai_risk'],
+            "score": float(row['ai_risk_score']),  # Pass float, not string
+            "last_alert": row['last_alert']
+        })
 
     # --- Department Readmission Chart ---
     dept_summary = df.groupby("department")["readmitted"].mean().reset_index()
-    dept_summary['readmitted'] = dept_summary['readmitted'].apply(lambda x: x * 100 if x <= 1 else x)
+    dept_summary['readmitted'] = dept_summary['readmitted'].apply(lambda x: x*100 if x <= 1 else x)
     if dept_summary['readmitted'].sum() == 0:
         dept_summary['readmitted'] = np.random.randint(5, 20, size=len(dept_summary))
 
@@ -697,17 +577,7 @@ def admin():
         marker_line_width=1.5,
         opacity=0.85
     )
-    fig.update_layout(
-        yaxis=dict(range=[0, max(dept_summary['readmitted']) + 10]),
-        xaxis_title="Department",
-        yaxis_title="Readmission Rate (%)",
-        title_x=0.5,
-        plot_bgcolor="#f7f9fc",
-        paper_bgcolor="#f7f9fc",
-        bargap=0.4,
-        font=dict(family="Arial", size=12, color="#2a3f5f"),
-        title_font=dict(size=20, color="#2a3f5f", family="Arial"),
-    )
+    fig.update_layout(yaxis=dict(range=[0, max(dept_summary['readmitted']) + 10]))
     graph_html = fig.to_html(full_html=False)
 
     # --- Monthly Risk Trend ---
@@ -715,25 +585,12 @@ def admin():
         df['month'] = pd.to_datetime(df['admission_date'], errors='coerce').dt.to_period('M')
         trend_df = df.groupby(['month', 'department'])['ai_risk_score'].mean().reset_index()
         trend_df['month'] = trend_df['month'].astype(str)
-        fig2 = px.line(
-            trend_df,
-            x="month",
-            y="ai_risk_score",
-            color="department",
-            title="Monthly Average Risk Score Trend by Department",
-            markers=True
-        )
-        fig2.update_layout(
-            yaxis_title="Average Risk Score",
-            xaxis_title="Month",
-            title_x=0.5,
-            template="plotly_white"
-        )
+        fig2 = px.line(trend_df, x="month", y="ai_risk_score", color="department",
+                       title="Monthly Average Risk Score Trend by Department", markers=True)
         trend_html = fig2.to_html(full_html=False)
     else:
-        trend_html = "<p class='text-center text-muted'>No monthly data available.</p>"
+        trend_html = ""  # fallback empty string
 
-    # --- Return template ---
     return render_template(
         "admin.html",
         graph_html=graph_html,
@@ -742,7 +599,6 @@ def admin():
         top_patients=top_patients,
         alerts_list=alerts_list
     )
-
 
 # --- Helper function: notify_patient ---
 def notify_patient(patient_email, patient_id, patient_name, risk_score, risk_level):
@@ -802,44 +658,70 @@ def doctor():
         return redirect("/login")
     return render_template("doctor.html", session=session)
 
-# --- Doctor: Add Patient Data & Calculate Risk ---
 @app.route("/doctor/add_patient", methods=["GET", "POST"])
 def add_patient():
     if session.get("role") != "doctor":
         flash("Access denied")
         return redirect("/login")
     
+    global df
+
     if request.method == "POST":
-        # Collect patient input
+        # Collect patient input safely
         patient_data = {
             "name": request.form.get("name", "Unknown"),
-            "age": int(request.form.get("age", 0)),
+            "age": int(request.form.get("age") or 0),
             "gender": request.form.get("gender", "N/A"),
             "department": request.form.get("department", "General"),
-            "time_in_hospital": int(request.form.get("time_in_hospital", 0)),
-            "num_medications": int(request.form.get("num_medications", 0)),
+            "time_in_hospital": int(request.form.get("time_in_hospital") or 0),
+            "num_medications": int(request.form.get("num_medications") or 0),
             "diagnosis": request.form.get("diagnosis", "N/A"),
-            "past_visits": int(request.form.get("past_visits", 0)),
+            "past_visits": int(request.form.get("past_visits") or 0),
             "treatment": request.form.get("treatment", "N/A")
         }
 
-        # Calculate AI risk using your model
-        risk_result = predict_risk(patient_data)
-        patient_data["ai_risk_score"] = risk_result.get("risk_score", 0)
-        patient_data["ai_risk"] = risk_result.get("risk_level", ai_level(patient_data["ai_risk_score"]))
-        patient_data["last_alert"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+        # --- Predict risk using model.py ---
+        try:
+            risk_result = predict_risk(patient_data)
+            patient_data["ai_risk_score"] = risk_result.get("risk_score", 0.0)
+            patient_data["ai_risk"] = risk_result.get("risk_level", ai_level(patient_data["ai_risk_score"]))
+        except Exception as e:
+            print(f"⚠️ Error predicting risk: {e}")
+            patient_data["ai_risk_score"] = 0.0
+            patient_data["ai_risk"] = "Low"
+
+        patient_data["last_alert"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         # Append safely to df
-        global df
         df = align_and_append_row(df, patient_data)
         df.to_csv(DATA_PATH, index=False)
 
-        flash(f"Patient added. Predicted Risk: {patient_data['ai_risk']} ({patient_data['ai_risk_score']*100:.2f}%)")
+        # --- Send SMS if high risk ---
+        patient_number = request.form.get("phone")  # optional field in form
+        sms_sent = False
+        if patient_number and patient_data["ai_risk_score"] >= HIGH_RISK_THRESHOLD:
+            try:
+                sms_sent = notify_patient_sms(
+                    patient_number,
+                    patient_data["name"],
+                    patient_data["ai_risk"],
+                    patient_data["ai_risk_score"],
+                    dry_run=False
+                )
+            except Exception as e:
+                print(f"⚠️ Failed to send SMS: {e}")
+
+        # Flash message with risk
+        flash(
+            f"Patient added. Predicted Risk: {patient_data['ai_risk']} "
+            f"({patient_data['ai_risk_score']*100:.1f}%). SMS sent: {sms_sent}"
+        )
         return redirect(url_for("doctor"))
-    
-    # GET request renders form
+
+    # GET request: render form
     departments = df['department'].unique().tolist()
     return render_template("doctor_add_patient.html", session=session, departments=departments)
+
 
 
 @app.route("/patient")
@@ -955,8 +837,7 @@ def api_alerts():
 
     return jsonify(alerts_list)
 
-
-# --- Monthly Report (Enhanced & Styled) ---
+# --- Monthly Report (Robust & Safe) ---
 @app.route("/admin/report")
 def admin_report():
     import pandas as pd
@@ -964,100 +845,135 @@ def admin_report():
     from datetime import datetime
     from flask import send_file
     from openpyxl.styles import Font, PatternFill
-    from openpyxl.utils import get_column_letter
+    import traceback
 
-    # --- Step 1: Define columns for report ---
-    report_columns = [
-        "patient_id", "name", "department", "age", "gender",
-        "time_in_hospital", "num_medications", "readmitted",
-        "ai_risk_score", "ai_risk", "last_alert"
-    ]
+    try:
+        global df
 
-    # Ensure required columns exist
-    for col in report_columns:
-        if col not in df.columns:
-            df[col] = "N/A"
+        # Step 0: Check if df exists and has data
+        if 'df' not in globals() or df.empty:
+            return "No patient data available to generate report.", 400
 
-    # --- Step 2: Compute AI risk scores ---
-    df["ai_risk_score"] = df.apply(patient_risk_score, axis=1)
+        # Step 1: Ensure essential report columns exist
+        report_columns = [
+            "patient_id", "name", "department", "age", "gender",
+            "time_in_hospital", "num_medications", "readmitted",
+            "ai_risk_score", "ai_risk", "last_alert"
+        ]
 
-    # --- Step 3: Create Excel file in memory ---
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine="openpyxl") as writer:
-        # Sheet 1: All Patients
-        df[report_columns].to_excel(writer, index=False, sheet_name="Patients")
+        for col in report_columns:
+            if col not in df.columns:
+                if col == "last_alert":
+                    df[col] = pd.NaT
+                elif col in ["ai_risk_score", "readmitted", "time_in_hospital", "num_medications", "age"]:
+                    df[col] = 0
+                else:
+                    df[col] = "N/A"
 
-        # Sheet 2: Department AI Summary
-        ai_summary = df.groupby("department")["ai_risk_score"].mean().reset_index()
-        ai_summary.rename(columns={"ai_risk_score": "avg_ai_risk"}, inplace=True)
-        ai_summary.to_excel(writer, index=False, sheet_name="AI_dept_summary")
+        # Step 2: Compute risk scores safely
+        if df["ai_risk_score"].isnull().all():
+            df["ai_risk_score"] = df.apply(patient_risk_score, axis=1)
+        if df["ai_risk"].isnull().all():
+            df["ai_risk"] = df["ai_risk_score"].apply(ai_level)
 
-        # Sheet 3: Top 10 High-Risk Patients
-        top_ai_patients = df.sort_values("ai_risk_score", ascending=False).head(10)
-        top_ai_patients[report_columns].to_excel(writer, index=False, sheet_name="Top_AI_Patients")
+        # Format last_alert safely
+        df["last_alert"] = pd.to_datetime(df["last_alert"], errors="coerce")\
+                            .dt.strftime("%Y-%m-%d %H:%M:%S").fillna("N/A")
 
-        # --- Step 4: Apply formatting to each sheet ---
-        workbook = writer.book
+        # Step 3: Create Excel file in memory
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine="openpyxl") as writer:
 
-        for sheet_name in workbook.sheetnames:
-            sheet = workbook[sheet_name]
+            # Sheet 1: All Patients
+            df[report_columns].to_excel(writer, index=False, sheet_name="Patients")
 
-            # Bold header row
-            for cell in sheet[1]:
-                cell.font = Font(bold=True)
-                cell.fill = PatternFill(start_color="D9E1F2", end_color="D9E1F2", fill_type="solid")
+            # Sheet 2: Department AI Summary
+            ai_summary = df.groupby("department")["ai_risk_score"].mean().reset_index()
+            ai_summary.rename(columns={"ai_risk_score": "avg_ai_risk"}, inplace=True)
+            df_counts = df.groupby("department")["patient_id"].count().reset_index().rename(columns={"patient_id": "num_patients"})
+            ai_summary = ai_summary.merge(df_counts, on="department", how="left")
+            ai_summary.to_excel(writer, index=False, sheet_name="AI_dept_summary")
 
-            # Auto column width
-            for column_cells in sheet.columns:
-                max_length = 0
-                column = column_cells[0].column_letter
-                for cell in column_cells:
+            # Sheet 3: Top 10 High-Risk Patients
+            top_ai_patients = df[df['ai_risk'] == "High"]\
+                                .sort_values("ai_risk_score", ascending=False)\
+                                .drop_duplicates(subset='patient_id').head(10)
+            if top_ai_patients.empty:
+                top_ai_patients = pd.DataFrame(columns=report_columns)
+            top_ai_patients[report_columns].to_excel(writer, index=False, sheet_name="Top_AI_Patients")
+
+            # Step 4: Apply safe formatting
+            workbook = writer.book
+            for sheet_name in workbook.sheetnames:
+                sheet = workbook[sheet_name]
+
+                # Bold header row + fill
+                header_row = list(sheet.iter_rows(min_row=1, max_row=1))
+                if header_row:
+                    for cell in header_row[0]:
+                        cell.font = Font(bold=True)
+                        cell.fill = PatternFill(start_color="D9E1F2", end_color="D9E1F2", fill_type="solid")
+
+                # Auto column width safely
+                for column_cells in sheet.columns:
                     try:
-                        if len(str(cell.value)) > max_length:
-                            max_length = len(str(cell.value))
+                        max_length = max([len(str(cell.value)) if cell.value is not None else 0 for cell in column_cells])
+                        column_letter = column_cells[0].column_letter
+                        sheet.column_dimensions[column_letter].width = max_length + 2
                     except:
-                        pass
-                adjusted_width = (max_length + 2)
-                sheet.column_dimensions[column].width = adjusted_width
+                        continue
 
-            # Conditional formatting for "ai_risk_score" if exists
-            if "ai_risk_score" in [cell.value for cell in sheet[1]]:
-                col_idx = [cell.value for cell in sheet[1]].index("ai_risk_score") + 1
-                for row in sheet.iter_rows(min_row=2, min_col=col_idx, max_col=col_idx):
-                    for cell in row:
-                        try:
-                            if float(cell.value) > 0.7:
-                                cell.fill = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")  # red
-                            elif float(cell.value) < 0.3:
-                                cell.fill = PatternFill(start_color="C6EFCE", end_color="C6EFCE", fill_type="solid")  # green
-                        except:
-                            pass
+                # Conditional formatting for ai_risk_score
+                header_names = [cell.value for cell in header_row[0]] if header_row else []
+                if "ai_risk_score" in header_names:
+                    col_idx = header_names.index("ai_risk_score") + 1
+                    for row in sheet.iter_rows(min_row=2, min_col=col_idx, max_col=col_idx):
+                        for cell in row:
+                            try:
+                                val = float(cell.value)
+                                if val >= 0.7:
+                                    cell.fill = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")  # Red
+                                elif val >= 0.3:
+                                    cell.fill = PatternFill(start_color="FFEB9C", end_color="FFEB9C", fill_type="solid")  # Yellow
+                                else:
+                                    cell.fill = PatternFill(start_color="C6EFCE", end_color="C6EFCE", fill_type="solid")  # Green
+                            except (ValueError, TypeError):
+                                continue
 
-    # --- Step 5: Send Excel file as download ---
-    filename = f"monthly_report_{datetime.now().strftime('%Y%m%d')}.xlsx"
-    output.seek(0)
-    return send_file(
-        output,
-        as_attachment=True,
-        download_name=filename,
-        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
+        # Step 5: Send file
+        filename = f"monthly_report_{datetime.now().strftime('%Y%m%d')}.xlsx"
+        output.seek(0)
+        return send_file(
+            output,
+            as_attachment=True,
+            download_name=filename,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+    except Exception as e:
+        return f"Error generating report: {str(e)}\n\n{traceback.format_exc()}", 500
 
 
-# --- High-Risk Alerts (simulated, prints to console) ---
+
+# --- High-Risk Alerts Function ---
 def send_high_risk_alerts():
+    import datetime
     global df
     alerts = []
+
+    # Ensure ai_risk column exists
+    if 'ai_risk' not in df.columns:
+        df['ai_risk'] = df.apply(lambda row: ai_level(patient_risk_score(row)), axis=1)
+
     for idx, row in df.iterrows():
         if row['ai_risk'] == "High":
             alert_msg = f"[ALERT] Patient {row['name']} in {row['department']} is HIGH risk ({row['ai_risk_score']*100:.2f}%)"
-            print(alert_msg)  # replace with email/SMS integration if needed
+            print(alert_msg)  # can replace with email/SMS
             alerts.append(alert_msg)
-            # Update last_alert timestamp
-            df.at[idx, 'last_alert'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+            # Update last_alert timestamp safely
+            df.at[idx, 'last_alert'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     return alerts
-
 
 # --- Run Flask ---
 if __name__ == "__main__":
-    app.run(debug=True, port=5001)
+    app.run(debug=True, port=5000)
